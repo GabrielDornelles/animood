@@ -1,0 +1,13 @@
+/target
+.env
+
+*.bin
+*.json
+*.py
+*.html
+
+venv
+.venv
+
+anime-llm-analysis
+.DS_Store
