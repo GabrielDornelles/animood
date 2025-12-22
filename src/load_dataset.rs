@@ -12,6 +12,7 @@ pub fn extract_synopses_and_pic_from_json(file_path: &str) -> Result<Vec<AnimeFi
     let file = File::open(file_path)?;
     let reader = BufReader::new(file);
     let anime_entries: Vec<HashMap<String, AnimeData>> = serde_json::from_reader(reader)?;
+
     let results: Vec<AnimeFilteredData> = anime_entries
         .into_iter()
         .flat_map(|entry| {
@@ -24,26 +25,26 @@ pub fn extract_synopses_and_pic_from_json(file_path: &str) -> Result<Vec<AnimeFi
                             .images?
                             .webp?
                             .large_image_url?;
-                            
+
                             let mut rich_synopsis = s;
-
-                            let description = anime.llm_description.clone()?;
-
-                            if let Some(enriched) = anime.llm_description {
+                            
+                            let description = anime.llm_description.clone().unwrap_or_default();
+                            
+                            if let Some(enriched) = &anime.llm_description {
                                 rich_synopsis.push_str("\n\n");
-                                rich_synopsis.push_str(&enriched);
+                                rich_synopsis.push_str(enriched);
                             }
-                            Some(
-                                AnimeFilteredData{
-                                    title: title,
-                                    rich_synopsis: rich_synopsis,
-                                    llm_description: description,
-                                    picture: picture,
-                                    score: anime.score,
-                                    members: anime.members,
-                                    favorites: anime.favorites
-                                }
-                            )
+
+                            Some(AnimeFilteredData {
+                                title,
+                                rich_synopsis,
+                                llm_description: description,
+                                picture,
+                                score: anime.score,
+                                members: anime.members,
+                                favorites: anime.favorites,
+                            })
+
                             //Some((title, rich_synopsis, picture))
                         } else {
                             None
@@ -52,6 +53,7 @@ pub fn extract_synopses_and_pic_from_json(file_path: &str) -> Result<Vec<AnimeFi
                 })
         })
         .collect();
+    println!("results: {}", results.len());
     Ok(results)
 }
 
@@ -79,7 +81,6 @@ pub fn build_bin_struct_from_json(file_path: &str) -> Result<()> {
         favorites.push(item.favorites);
 
         llm_descriptions.push(item.llm_description);
-
     }
     
     let embeddings = embed(synopses)?;
