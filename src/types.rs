@@ -21,6 +21,21 @@ pub struct AnimeData {
     pub synopsis: Option<String>,
     pub llm_description: Option<String>,
     pub images: Option<Images>,
+    pub score: f32,
+    pub members: u32,
+    pub favorites: u32
+}
+
+// ---
+
+pub struct AnimeFilteredData {
+    pub title: String,
+    pub rich_synopsis: String,
+    pub llm_description: String,
+    pub picture: String,
+    pub score: f32,
+    pub members: u32,
+    pub favorites: u32
 }
 
 
@@ -28,7 +43,11 @@ pub struct AnimeData {
 pub struct AnimeEmbeddings {
     pub names: Vec<String>,
     pub embeddings: Vec<Vec<f32>>,
-    pub picture_urls: Vec<String>
+    pub picture_urls: Vec<String>,
+    pub scores: Vec<f32>,
+    pub members: Vec<u32>,
+    pub favorites: Vec<u32>,
+    pub llm_description: Vec<String>
 }
 
 impl AnimeEmbeddings {
@@ -60,6 +79,7 @@ pub struct AnimeResult {
     pub title: String,
     pub score: f32,
     pub image_url: String,
+    pub llm_description: String
 }
 
 impl fmt::Display for AnimeResult {
