@@ -6,7 +6,6 @@ use axum::{
     Json,
 };
 
-
 use crate::{
     AppState,
     query_anime,

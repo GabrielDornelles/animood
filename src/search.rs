@@ -4,7 +4,6 @@ use crate::types::{AnimeResult};
 use crate::embedder::embed;
 use crate::AppState;
 
-
 // Dataset normalization constants (computed offline)
 pub const SCORE_MIN: f32 = 5.04;
 pub const SCORE_MAX: f32 = 9.29;

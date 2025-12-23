@@ -19,21 +19,6 @@ pub fn build_model_and_tokenizer() -> Result<(BertModel, tokenizers::Tokenizer)>
 
     let device: Device = Device::new_metal(0)?;
 
-    // base model
-    // let config = Config::new(
-    //     tokenizer.get_vocab_size(true),
-    //     768,      
-    //     12,       
-    //     12,       
-    //     3072,    
-    //     candle_nn::Activation::Gelu,
-    //     8192,    
-    //     2,
-    //     0.02,
-    //     1e-12,
-    //     0,
-    //     PositionEmbeddingType::Alibi,
-    // );
     let config = Config::new(
         tokenizer.get_vocab_size(true),
         512,      // hidden size

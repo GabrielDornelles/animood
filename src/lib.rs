@@ -10,6 +10,6 @@ pub use load_dataset::build_bin_struct_from_json;
 pub use search::query_anime;
 pub use types::AnimeEmbeddings;
 
-pub mod state; // 👈 ADD THIS
-pub use state::AppState; // 👈 EXPORT
-pub mod api; // 👈 ADD
+pub mod state;
+pub use state::AppState;
+pub mod api;

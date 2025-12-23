@@ -16,11 +16,6 @@ pub fn embed(
 ) -> Result<Vec<Vec<f32>>> {
     let device = &model.device;
 
-    // let tokenizer = tokenizer
-    //     .with_padding(None)
-    //     .with_truncation(None)
-    //     .map_err(|e| anyhow::anyhow!(e))?;
-
     let mut embedding_vec = Vec::with_capacity(synopsis.len());
 
     for item in synopsis {
