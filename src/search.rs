@@ -1,7 +1,9 @@
 use anyhow::Result;
 use rayon::{prelude::*};
-use crate::types::{AnimeEmbeddings, AnimeResult};
+use crate::types::{AnimeResult};
 use crate::embedder::embed;
+use crate::AppState;
+
 
 // Dataset normalization constants (computed offline)
 pub const SCORE_MIN: f32 = 5.04;
@@ -50,55 +52,101 @@ pub fn search_similarity(
     scores
 }
 
-pub fn query_anime(query: &str, k: usize) -> Result<Vec<AnimeResult>> {
-    let loaded = AnimeEmbeddings::load_bin("embeddings.bin")?;
+pub fn query_anime(
+    state: &AppState,
+    query: &str,
+    k: usize,
+) -> Result<Vec<AnimeResult>> {
+    let query_emb = &embed(
+        &state.model,
+        &state.tokenizer,
+        &[query.to_string()],
+    )?[0];
 
-    let query_emb = &embed(vec![query.to_string()])?[0];
-    let top = search_similarity(&query_emb, &loaded.embeddings, k * 2);
+    let top = search_similarity(query_emb, &state.embeddings.embeddings, k * 2);
 
     let mut results: Vec<AnimeResult> = top
         .into_iter()
         .map(|(idx, embedding_score)| {
-            let norm_score = norm(
-                loaded.scores[idx],
-                SCORE_MIN,
-                SCORE_MAX,
-            );
-
-            let norm_members = log_norm(
-                loaded.members[idx],
-                MEMBERS_LOG_MIN,
-                MEMBERS_LOG_MAX,
-            );
-
-            let norm_favorites = log_norm(
-                loaded.favorites[idx],
-                FAVORITES_LOG_MIN,
-                FAVORITES_LOG_MAX,
-            );
-
             let final_score =
-                0.55 * embedding_score +
-                0.20 * norm_score +
-                0.15 * norm_members +
-                0.10 * norm_favorites;
+                0.6 * embedding_score +
+                0.20 * norm(state.embeddings.scores[idx], SCORE_MIN, SCORE_MAX) +
+                0.10 * log_norm(
+                    state.embeddings.members[idx],
+                    MEMBERS_LOG_MIN,
+                    MEMBERS_LOG_MAX,
+                ) +
+                0.10 * log_norm(
+                    state.embeddings.favorites[idx],
+                    FAVORITES_LOG_MIN,
+                    FAVORITES_LOG_MAX,
+                );
 
             AnimeResult {
-                title: loaded.names[idx].clone(),
+                title: state.embeddings.names[idx].clone(),
                 score: final_score,
-                image_url: loaded.picture_urls[idx].clone(),
-                llm_description: loaded.llm_description[idx].clone()
+                image_url: state.embeddings.picture_urls[idx].clone(),
+                llm_description: state.embeddings.llm_description[idx].clone(),
             }
         })
         .collect();
-    
-    results.sort_by(|a, b| {
-        b.score
-            .partial_cmp(&a.score)
-            .unwrap()
-    });
-    results.truncate(k);
+
+    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+    results.truncate(20);
 
     Ok(results)
 }
+
+
+// pub fn query_anime(query: &str, k: usize) -> Result<Vec<AnimeResult>> {
+//     let loaded = AnimeEmbeddings::load_bin("embeddings.bin")?;
+
+//     let query_emb = &embed(vec![query.to_string()])?[0];
+//     let top = search_similarity(&query_emb, &loaded.embeddings, k * 2);
+
+//     let mut results: Vec<AnimeResult> = top
+//         .into_iter()
+//         .map(|(idx, embedding_score)| {
+//             let norm_score = norm(
+//                 loaded.scores[idx],
+//                 SCORE_MIN,
+//                 SCORE_MAX,
+//             );
+
+//             let norm_members = log_norm(
+//                 loaded.members[idx],
+//                 MEMBERS_LOG_MIN,
+//                 MEMBERS_LOG_MAX,
+//             );
+
+//             let norm_favorites = log_norm(
+//                 loaded.favorites[idx],
+//                 FAVORITES_LOG_MIN,
+//                 FAVORITES_LOG_MAX,
+//             );
+
+//             let final_score =
+//                 0.55 * embedding_score +
+//                 0.20 * norm_score +
+//                 0.15 * norm_members +
+//                 0.10 * norm_favorites;
+
+//             AnimeResult {
+//                 title: loaded.names[idx].clone(),
+//                 score: final_score,
+//                 image_url: loaded.picture_urls[idx].clone(),
+//                 llm_description: loaded.llm_description[idx].clone()
+//             }
+//         })
+//         .collect();
+    
+//     results.sort_by(|a, b| {
+//         b.score
+//             .partial_cmp(&a.score)
+//             .unwrap()
+//     });
+//     results.truncate(k);
+
+//     Ok(results)
+// }
 

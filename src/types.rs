@@ -90,3 +90,9 @@ impl fmt::Display for AnimeResult {
         Ok(())
     }
 }
+
+#[derive(Debug, serde::Deserialize)]
+pub struct QueryRequest {
+    pub query: String,
+    pub k: Option<usize>,
+}

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use crate::types::AnimeData;
-use crate::embedder::embed;
+use crate::embedder::embed_at_build;
 use crate::types::{AnimeEmbeddings, AnimeFilteredData};
 
 // The JSON structure is: [{"Title": AnimeData}, {"Title2": AnimeData}, ...]
@@ -83,7 +83,7 @@ pub fn build_bin_struct_from_json(file_path: &str) -> Result<()> {
         llm_descriptions.push(item.llm_description);
     }
     
-    let embeddings = embed(synopses)?;
+    let embeddings = embed_at_build(synopses)?;
     let anime_embeddings = AnimeEmbeddings{
         names: titles,
         embeddings: embeddings,
