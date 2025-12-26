@@ -1,8 +1,8 @@
 /target
 .env
 
-*.bin
-*.json
+# *.bin
+# *.json
 *.py
 *.html
 
