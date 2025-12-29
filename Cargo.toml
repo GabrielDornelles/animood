@@ -1,13 +1,13 @@
 [package]
-name = "anime_recommender"
+name = "animood"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 anyhow = "1"
-candle-core = { version = "0.9.1", features = ["metal"] }
+candle-core = { version = "0.9.1"}
 candle-nn = "0.9.1"
-candle-transformers = { version = "0.9.1", features = ["metal"] }
+candle-transformers = { version = "0.9.1"}
 hf-hub = "0.3"
 tokenizers = "0.14"
 serde_json = "1.0"

@@ -1,8 +1,8 @@
 /target
 .env
 
-*.bin
-*.json
+# *.bin
+# *.json
 *.py
 *.html
 
@@ -10,3 +10,5 @@ venv
 .venv
 
 .DS_Store
+*.key
+letsencrypt

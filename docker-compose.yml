@@ -1,0 +1,64 @@
+version: "3.3"
+
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+
+    command:
+      - "--providers.docker=true"
+
+      # EntryPoints
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # Redirect HTTP → HTTPS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+      # ACME HTTP-01
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=contato@airinn.com.br"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+
+  animood:
+    image: animood:latest
+    container_name: animood
+    restart: unless-stopped
+
+    environment:
+      RUST_LOG: info
+      RAYON_NUM_THREADS: 1
+      MODEL_DIR: /app/models/jina-embeddings-v2-small-en
+      EMBEDDINGS_PATH: /app/embeddings.bin
+
+    labels:
+      - "traefik.enable=true"
+
+      # HTTP router — with host rule
+      - "traefik.http.routers.animood.rule=Host(`api.animood.airinn.com.br`) && PathPrefix(`/query`)"
+      - "traefik.http.routers.animood.entrypoints=web"
+      - "traefik.http.routers.animood.middlewares=animood_ratelimit"
+
+      # HTTPS router
+      - "traefik.http.routers.animood_secure.rule=Host(`api.animood.airinn.com.br`) && PathPrefix(`/query`)"
+      - "traefik.http.routers.animood_secure.entrypoints=websecure"
+      - "traefik.http.routers.animood_secure.tls.certresolver=myresolver"
+      - "traefik.http.routers.animood_secure.middlewares=animood_ratelimit"
+
+      # Backend port
+      - "traefik.http.services.animood.loadbalancer.server.port=3000"
+
+      # Rate limit
+      - "traefik.http.middlewares.animood_ratelimit.ratelimit.average=1"
+      - "traefik.http.middlewares.animood_ratelimit.ratelimit.burst=5"
+      - "traefik.http.middlewares.animood_ratelimit.ratelimit.period=1s"
