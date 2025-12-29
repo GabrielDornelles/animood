@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::{Router, routing::post};
+use axum::{Router, routing::{post, get}};
 use tower_http::cors::{CorsLayer, Any};
 use animood::{
     AppState,
@@ -9,6 +9,14 @@ use animood::{
     model::build_model_and_tokenizer_from_disk,
     types::AnimeEmbeddings,
 };
+
+use axum::{Json};
+use serde_json::json;
+
+async fn health() -> Json<serde_json::Value> {
+    Json(json!({"status": "ok"}))
+}
+
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -34,6 +42,7 @@ async fn main() -> Result<()> {
 
     let app = Router::new()
         .route("/query", post(query_handler))
+        .route("/health", get(health))
         .with_state(state)
         .layer(cors);
 

@@ -1,30 +1,38 @@
+version: "3.3"
+
 services:
   traefik:
     image: traefik:v2.10
     container_name: traefik
+
     command:
-      - "--api.dashboard=false"
       - "--providers.docker=true"
 
+      # EntryPoints
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
 
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      # Redirect HTTP → HTTPS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+
+      # ACME HTTP-01
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.myresolver.acme.email=contato@airinn.com.br"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+
     ports:
       - "80:80"
       - "443:443"
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./letsencrypt:/letsencrypt
 
   animood:
-    # image: animood:latest
-    # container_name: animood
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: animood:latest
+    container_name: animood
     restart: unless-stopped
 
     environment:
@@ -36,47 +44,21 @@ services:
     labels:
       - "traefik.enable=true"
 
-      # ---- HTTP ----
-      - "traefik.http.routers.animood.rule=PathPrefix(`/query`)"
+      # HTTP router — with host rule
+      - "traefik.http.routers.animood.rule=Host(`api.animood.airinn.com.br`) && PathPrefix(`/query`)"
       - "traefik.http.routers.animood.entrypoints=web"
+      - "traefik.http.routers.animood.middlewares=animood_ratelimit"
 
-      # ---- HTTPS ----
-      - "traefik.http.routers.animood_secure.rule=PathPrefix(`/query`)"
+      # HTTPS router
+      - "traefik.http.routers.animood_secure.rule=Host(`api.animood.airinn.com.br`) && PathPrefix(`/query`)"
       - "traefik.http.routers.animood_secure.entrypoints=websecure"
       - "traefik.http.routers.animood_secure.tls.certresolver=myresolver"
-
-
-      # # =====================
-      # # HTTP (redirectable)
-      # # =====================
-      # - >
-      #   traefik.http.routers.animood.rule=
-      #   Host(`animood.airinn.com.br`)
-      #   && PathPrefix(`/query`)
-      # - "traefik.http.routers.animood.entrypoints=web"
-
-      # # =====================
-      # # HTTPS (production)
-      # # =====================
-      # - >
-      #   traefik.http.routers.animood_secure.rule=
-      #   Host(`animood.airinn.com.br`)
-      #   && PathPrefix(`/query`)
-      # - "traefik.http.routers.animood_secure.entrypoints=websecure"
-      # - "traefik.http.routers.animood_secure.tls.certresolver=myresolver"
-
-
-
-      # ---- Service port ----
-      - "traefik.http.services.animood.loadbalancer.server.port=3000"
-
-      # ---- Rate limit ----
-      - "traefik.http.middlewares.animood_ratelimit.ratelimit.average=2"
-      - "traefik.http.middlewares.animood_ratelimit.ratelimit.burst=5"
-      - "traefik.http.middlewares.animood_ratelimit.ratelimit.period=1s"
-      - "traefik.http.routers.animood.middlewares=animood_ratelimit"
       - "traefik.http.routers.animood_secure.middlewares=animood_ratelimit"
 
-    # ❌ DO NOT expose ports publicly when using Traefik
-    # ports:
-    #   - "3000:3000"
+      # Backend port
+      - "traefik.http.services.animood.loadbalancer.server.port=3000"
+
+      # Rate limit
+      - "traefik.http.middlewares.animood_ratelimit.ratelimit.average=1"
+      - "traefik.http.middlewares.animood_ratelimit.ratelimit.burst=5"
+      - "traefik.http.middlewares.animood_ratelimit.ratelimit.period=1s"
