@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use crate::types::AnimeData;
-use crate::embedder::embed_at_build;
+use crate::embedder::bin_embed_creation;
 use crate::types::{AnimeEmbeddings, AnimeFilteredData};
 
 // The JSON structure is: [{"Title": AnimeData}, {"Title2": AnimeData}, ...]
@@ -43,6 +43,7 @@ pub fn extract_synopses_and_pic_from_json(file_path: &str) -> Result<Vec<AnimeFi
                                 score: anime.score,
                                 members: anime.members,
                                 favorites: anime.favorites,
+                                id: anime.id
                             })
 
                             //Some((title, rich_synopsis, picture))
@@ -70,6 +71,7 @@ pub fn build_bin_struct_from_json(file_path: &str) -> Result<()> {
     let mut favorites = Vec::new();
 
     let mut llm_descriptions = Vec::new();
+    let mut ids = Vec::new();
 
     for item in anime_data {
         titles.push(item.title);
@@ -81,9 +83,11 @@ pub fn build_bin_struct_from_json(file_path: &str) -> Result<()> {
         favorites.push(item.favorites);
 
         llm_descriptions.push(item.llm_description);
+        ids.push(item.id)
+
     }
     
-    let embeddings = embed_at_build(synopses)?;
+    let embeddings = bin_embed_creation(synopses)?;
     let anime_embeddings = AnimeEmbeddings{
         names: titles,
         embeddings: embeddings,
@@ -91,7 +95,8 @@ pub fn build_bin_struct_from_json(file_path: &str) -> Result<()> {
         scores: scores,
         members: members,
         favorites: favorites,
-        llm_description: llm_descriptions
+        llm_description: llm_descriptions,
+        ids: ids
     };
 
     //Step 7: Save with bincode

@@ -23,7 +23,8 @@ pub struct AnimeData {
     pub images: Option<Images>,
     pub score: f32,
     pub members: u32,
-    pub favorites: u32
+    pub favorites: u32,
+    pub id: u32,
 }
 
 // ---
@@ -35,7 +36,8 @@ pub struct AnimeFilteredData {
     pub picture: String,
     pub score: f32,
     pub members: u32,
-    pub favorites: u32
+    pub favorites: u32,
+    pub id: u32
 }
 
 
@@ -47,7 +49,8 @@ pub struct AnimeEmbeddings {
     pub scores: Vec<f32>,
     pub members: Vec<u32>,
     pub favorites: Vec<u32>,
-    pub llm_description: Vec<String>
+    pub llm_description: Vec<String>,
+    pub ids: Vec<u32>
 }
 
 impl AnimeEmbeddings {
@@ -71,6 +74,13 @@ impl AnimeEmbeddings {
         let embeddings: Self = bincode::deserialize_from(reader)?;
         Ok(embeddings)
     }
+
+    // pub fn get_embedding(name: &str) -> Result<f32> {
+
+    //     155
+        
+    //     Ok(32.2)
+    // }
 }
 
 // for the frontend to consume
