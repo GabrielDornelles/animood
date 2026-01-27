@@ -133,7 +133,7 @@ fn weighted_centroid(pairs: &[(&[f32], f32)]) -> Option<Vec<f32>> {
 // Taste query builder
 // =============================
 
-const POS_WEIGHT: f32 = 5.0;
+const POS_WEIGHT: f32 = 1.0;
 const NEG_WEIGHT: f32 = 1.0;
 const CLIP_VALUE: f32 = 10.0;
 
@@ -235,7 +235,7 @@ async fn main() -> Result<()> {
             watched.push(item.anime_id);
             if let Some(diff) = item.anime_score_diff {
 
-                if diff > 1.0 && diff.abs() < 99.0 {
+                if diff > 0.5 && diff.abs() < 99.0 {
                     personal_favorites.push(item);
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
@@ -243,7 +243,7 @@ async fn main() -> Result<()> {
                     } 
                 }
                 
-                if diff < - 1.0 && diff.abs() < 99.0{
+                if diff < - 0.5 && diff.abs() < 99.0{
                     unliked.push(item);
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
