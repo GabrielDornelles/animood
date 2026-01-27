@@ -51,6 +51,23 @@ pub fn search_similarity(
     scores
 }
 
+
+// pub fn query_anime_with_user_taste(
+//     state: &AppState,
+//     taste_query: Option<Vec<f32>>,
+//     k: usize,
+// ) -> Result<Vec<AnimeResult>> {
+
+//     if let Some(query_vec) = taste_query {
+//         let top = search_similarity(
+//             &query_vec,
+//             &embeddings.embeddings,
+//             20 * 2,
+//         )
+//     }
+
+// }
+
 pub fn query_anime(
     state: &AppState,
     query: &str,

@@ -63,7 +63,150 @@ use anyhow::{Result};
 // };
 use reqwest::header::{ACCEPT, USER_AGENT};
 use animood::mal_types::parse_mal_list;
-use animood::{AnimeEmbeddings};
+use animood::{AnimeEmbeddings, search_similarity};
+use animood::types::{AnimeResult};
+
+// =============================
+// Vector utilities
+// =============================
+
+fn clip_and_normalize(v: &mut [f32], clip: f32) {
+    // Clip values to avoid dominance
+    for x in v.iter_mut() {
+        *x = x.clamp(-clip, clip);
+    }
+
+    // L2 normalize (cosine space)
+    // let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    // if norm > 0.0 {
+    //     for x in v.iter_mut() {
+    //         *x /= norm;
+    //     }
+    // }
+}
+
+// =============================
+// Weighted centroid
+// =============================
+
+fn weighted_centroid(pairs: &[(&[f32], f32)]) -> Option<Vec<f32>> {
+    if pairs.is_empty() {
+        return None;
+    }
+
+    let dim = pairs[0].0.len();
+    let mut acc = vec![0.0f32; dim];
+    let mut weight_sum = 0.0f32;
+
+    for (emb, weight) in pairs {
+        // Defensive: ignore broken data
+        if emb.len() != dim {
+            continue;
+        }
+
+        let w = weight.abs();
+        if w == 0.0 {
+            continue;
+        }
+
+        weight_sum += w;
+        for i in 0..dim {
+            acc[i] += emb[i] * w;
+        }
+    }
+
+    if weight_sum == 0.0 {
+        return None;
+    }
+
+    for v in &mut acc {
+        *v /= weight_sum;
+    }
+
+    // Keep centroid stable for similarity search
+    clip_and_normalize(&mut acc, 10.0);
+
+    Some(acc)
+}
+
+// =============================
+// Taste query builder
+// =============================
+
+const POS_WEIGHT: f32 = 1.0;
+const NEG_WEIGHT: f32 = 1.0;
+const CLIP_VALUE: f32 = 10.0;
+
+fn build_taste_query(
+    positive: Option<Vec<f32>>,
+    negative: Option<Vec<f32>>,
+) -> Option<Vec<f32>> {
+    match (positive, negative) {
+        // No signal
+        (None, None) => None,
+
+        // Only positive taste
+        (Some(mut pos), None) => {
+            clip_and_normalize(&mut pos, CLIP_VALUE);
+            Some(pos)
+        }
+
+        // Only negative taste (invert)
+        (None, Some(mut neg)) => {
+            for v in &mut neg {
+                *v = -*v;
+            }
+            clip_and_normalize(&mut neg, CLIP_VALUE);
+            Some(neg)
+        }
+
+        // Positive + negative
+        (Some(mut pos), Some(neg)) => {
+            if pos.len() != neg.len() {
+                // Fallback: trust positives
+                clip_and_normalize(&mut pos, CLIP_VALUE);
+                return Some(pos);
+            }
+
+            for i in 0..pos.len() {
+                pos[i] = POS_WEIGHT * pos[i] - NEG_WEIGHT * neg[i];
+            }
+
+            clip_and_normalize(&mut pos, CLIP_VALUE);
+            Some(pos)
+        }
+    }
+}
+
+
+pub const SCORE_MIN: f32 = 5.04;
+pub const SCORE_MAX: f32 = 9.29;
+
+pub const MEMBERS_LOG_MIN: f32 = 9.211;
+pub const MEMBERS_LOG_MAX: f32 = 15.267;
+
+pub const FAVORITES_LOG_MIN: f32 = 0.693;
+pub const FAVORITES_LOG_MAX: f32 = 12.413;
+
+
+fn dot(a: &[f32], b: &[f32]) -> f32 {
+    a.iter().zip(b).map(|(x, y)| x * y).sum()
+}
+
+#[inline]
+fn norm(value: f32, min: f32, max: f32) -> f32 {
+    if max <= min {
+        0.0
+    } else {
+        ((value - min) / (max - min)).clamp(0.0, 1.0)
+    }
+}
+
+#[inline]
+fn log_norm(value: u32, min_log: f32, max_log: f32) -> f32 {
+    let v = (value as f32 + 1.0).ln();
+    norm(v, min_log, max_log)
+}
 
 #[tokio::main]
 async fn main() -> Result<()> { 
@@ -87,8 +230,8 @@ async fn main() -> Result<()> {
     let mut personal_favorites = Vec::new();
     let mut unliked = Vec::new();
 
-    let mut positive_pairs: Vec<(f32, f32)> = Vec::new();
-    let mut negative_pairs: Vec<(f32, f32)> = Vec::new();
+    let mut positive_pairs: Vec<(&[f32], f32)> = Vec::new();
+    let mut negative_pairs: Vec<(&[f32], f32)> = Vec::new();
 
     for item in entries.iter() {
         if item.status == Some(2) {
@@ -96,17 +239,69 @@ async fn main() -> Result<()> {
 
                 if diff > 1.0 {
                     personal_favorites.push(item);
-                    //EmbeddingScorePair{embedding: 3.2, score: 2.5};
-                    positive_pairs.push((3.2, 3.1));
-
+                    let embedding = embeddings.get_embedding(item.anime_id)?;
+                    if let Some(embedding_vec) = embedding {
+                         positive_pairs.push((embedding_vec, diff));
+                    } 
                 }
                 
                 if diff < - 1.0 {
                     unliked.push(item);
+                    let embedding = embeddings.get_embedding(item.anime_id)?;
+                    if let Some(embedding_vec) = embedding {
+                         negative_pairs.push((embedding_vec, diff));
+                    } 
                 }
             }
         }
     }
+
+    let positive_taste = weighted_centroid(&positive_pairs);
+    let negative_taste = weighted_centroid(&negative_pairs);
+
+    let taste_query = build_taste_query(positive_taste, negative_taste).unwrap();
+
+    let top = search_similarity(
+        &taste_query,
+        &embeddings.embeddings,
+        100 * 2,
+    );
+
+
+    let mut results: Vec<AnimeResult> = top
+        .into_iter()
+        .map(|(idx, embedding_score)| {
+            let final_score =
+                0.9 * embedding_score +
+                0.00 * norm(embeddings.scores[idx], SCORE_MIN, SCORE_MAX) +
+                0.00 * log_norm(
+                    embeddings.members[idx],
+                    MEMBERS_LOG_MIN,
+                    MEMBERS_LOG_MAX,
+                ) +
+                0.00 * log_norm(
+                    embeddings.favorites[idx],
+                    FAVORITES_LOG_MIN,
+                    FAVORITES_LOG_MAX,
+                );
+
+            AnimeResult {
+                title: embeddings.names[idx].clone(),
+                score: final_score,
+                image_url: embeddings.picture_urls[idx].clone(),
+                llm_description: embeddings.llm_description[idx].clone(),
+            }
+        })
+        .collect();
+
+    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+    results.truncate(50);
+    
+
+  
+
+        // same post-processing as before
+    
 
     //println!("{}", body);
     println!("Personal favorites:");
@@ -118,6 +313,16 @@ async fn main() -> Result<()> {
     for e in unliked.iter() {
          println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff);
     }
+
+    println!("\n Recommendations for you:");
+
+    for item in results {
+        let title = item.title;
+        println!("{title}")
+    }
+    // for e in &results.iter(){
+    //     println!("{e.title}");
+    // }
 
 
     Ok(())

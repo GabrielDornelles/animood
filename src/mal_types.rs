@@ -26,61 +26,61 @@ pub struct MalAnimeEntry {
     pub status: Option<u8>,                 // user's list status (1=watching, 2=completed, ...)
     pub score: Option<u8>,                  // user's score for this anime (0-10)
     pub tags: Option<String>,
-    pub is_rewatching: Option<u8>,
-    pub num_watched_episodes: Option<u32>,
-    pub created_at: Option<u64>,            // unix timestamp
-    pub updated_at: Option<u64>,            // unix timestamp
+    // pub is_rewatching: Option<u8>,
+    // pub num_watched_episodes: Option<u32>,
+    // pub created_at: Option<u64>,            // unix timestamp
+    // pub updated_at: Option<u64>,            // unix timestamp
 
     // anime metadata
     pub anime_title: Option<String>,
-    pub anime_title_eng: Option<String>,
-    pub anime_num_episodes: Option<u32>,
-    pub anime_airing_status: Option<u8>,
+    // pub anime_title_eng: Option<String>,
+    // pub anime_num_episodes: Option<u32>,
+    // pub anime_airing_status: Option<u8>,
     pub anime_id: u32,
-    pub anime_studios: Option<String>,
-    pub anime_licensors: Option<String>,
-    pub anime_season: Option<String>,
+    // pub anime_studios: Option<String>,
+    // pub anime_licensors: Option<String>,
+    // pub anime_season: Option<String>,
 
     // popularity / scoring
-    pub anime_total_members: Option<u64>,
-    pub anime_total_scores: Option<u64>,
-    pub anime_score_val: Option<f32>,      // global MAL score (e.g. 8.21)
+    // pub anime_total_members: Option<u64>,
+    // pub anime_total_scores: Option<u64>,
+    // pub anime_score_val: Option<f32>,      // global MAL score (e.g. 8.21)
     pub anime_score_diff: Option<f32>,     // the per-user score diff field 
-    pub anime_popularity: Option<u32>,
+    // pub anime_popularity: Option<u32>,
 
     // video / flags
-    pub has_episode_video: Option<bool>,
-    pub has_promotion_video: Option<bool>,
-    pub has_video: Option<bool>,
+    // pub has_episode_video: Option<bool>,
+    // pub has_promotion_video: Option<bool>,
+    // pub has_video: Option<bool>,
 
-    pub video_url: Option<String>,
+    // pub video_url: Option<String>,
 
-    // categories
-    pub genres: Option<Vec<Genre>>,
-    pub demographics: Option<Vec<Demographic>>,
+    // // categories
+    // pub genres: Option<Vec<Genre>>,
+    // pub demographics: Option<Vec<Demographic>>,
 
-    // urls, images
-    pub title_localized: Option<String>,
-    pub anime_url: Option<String>,
-    pub anime_image_path: Option<String>,
+    // // urls, images
+    // pub title_localized: Option<String>,
+    // pub anime_url: Option<String>,
+    // pub anime_image_path: Option<String>,
 
-    // list UI / misc
-    pub is_added_to_list: Option<bool>,
-    pub anime_media_type_string: Option<String>,
-    pub anime_mpaa_rating_string: Option<String>,
+    // // list UI / misc
+    // pub is_added_to_list: Option<bool>,
+    // pub anime_media_type_string: Option<String>,
+    // pub anime_mpaa_rating_string: Option<String>,
 
-    // date strings (sometimes null)
-    pub start_date_string: Option<String>,
-    pub finish_date_string: Option<String>,
-    pub anime_start_date_string: Option<String>,
-    pub anime_end_date_string: Option<String>,
+    // // date strings (sometimes null)
+    // pub start_date_string: Option<String>,
+    // pub finish_date_string: Option<String>,
+    // pub anime_start_date_string: Option<String>,
+    // pub anime_end_date_string: Option<String>,
 
     // other small fields
     // pub days_string: Option<String>,
     // pub storage_string: Option<String>,
     // pub priority_string: Option<String>,
-    pub notes: Option<String>,
-    pub editable_notes: Option<String>,
+    // pub notes: Option<String>,
+    // pub editable_notes: Option<String>,
 }
 
 // Convenience parse function

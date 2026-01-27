@@ -75,12 +75,10 @@ impl AnimeEmbeddings {
         Ok(embeddings)
     }
 
-    // pub fn get_embedding(name: &str) -> Result<f32> {
-
-    //     155
-        
-    //     Ok(32.2)
-    // }
+    pub fn get_embedding(&self, mal_id: u32) -> Result<Option<&[f32]>> {
+        let idx: Option<usize> = self.ids.iter().position(|&id| id == mal_id);
+        Ok(idx.map(|i| self.embeddings[i].as_slice()))
+    }
 }
 
 // for the frontend to consume
