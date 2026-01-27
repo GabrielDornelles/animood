@@ -133,7 +133,7 @@ fn weighted_centroid(pairs: &[(&[f32], f32)]) -> Option<Vec<f32>> {
 // Taste query builder
 // =============================
 
-const POS_WEIGHT: f32 = 1.0;
+const POS_WEIGHT: f32 = 5.0;
 const NEG_WEIGHT: f32 = 1.0;
 const CLIP_VALUE: f32 = 10.0;
 
@@ -188,11 +188,6 @@ pub const MEMBERS_LOG_MAX: f32 = 15.267;
 pub const FAVORITES_LOG_MIN: f32 = 0.693;
 pub const FAVORITES_LOG_MAX: f32 = 12.413;
 
-
-fn dot(a: &[f32], b: &[f32]) -> f32 {
-    a.iter().zip(b).map(|(x, y)| x * y).sum()
-}
-
 #[inline]
 fn norm(value: f32, min: f32, max: f32) -> f32 {
     if max <= min {
@@ -230,14 +225,17 @@ async fn main() -> Result<()> {
     let mut personal_favorites = Vec::new();
     let mut unliked = Vec::new();
 
+    let mut watched = Vec::new();
+
     let mut positive_pairs: Vec<(&[f32], f32)> = Vec::new();
     let mut negative_pairs: Vec<(&[f32], f32)> = Vec::new();
 
     for item in entries.iter() {
         if item.status == Some(2) {
+            watched.push(item.anime_id);
             if let Some(diff) = item.anime_score_diff {
 
-                if diff > 1.0 {
+                if diff > 1.0 && diff.abs() < 99.0 {
                     personal_favorites.push(item);
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
@@ -245,7 +243,7 @@ async fn main() -> Result<()> {
                     } 
                 }
                 
-                if diff < - 1.0 {
+                if diff < - 1.0 && diff.abs() < 99.0{
                     unliked.push(item);
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
@@ -272,14 +270,14 @@ async fn main() -> Result<()> {
         .into_iter()
         .map(|(idx, embedding_score)| {
             let final_score =
-                0.9 * embedding_score +
-                0.00 * norm(embeddings.scores[idx], SCORE_MIN, SCORE_MAX) +
-                0.00 * log_norm(
+                0.8 * embedding_score +
+                0.05 * norm(embeddings.scores[idx], SCORE_MIN, SCORE_MAX) +
+                0.05 * log_norm(
                     embeddings.members[idx],
                     MEMBERS_LOG_MIN,
                     MEMBERS_LOG_MAX,
                 ) +
-                0.00 * log_norm(
+                0.1 * log_norm(
                     embeddings.favorites[idx],
                     FAVORITES_LOG_MIN,
                     FAVORITES_LOG_MAX,
@@ -290,13 +288,23 @@ async fn main() -> Result<()> {
                 score: final_score,
                 image_url: embeddings.picture_urls[idx].clone(),
                 llm_description: embeddings.llm_description[idx].clone(),
+                mal_id: embeddings.ids[idx]
             }
         })
         .collect();
-
+    
+    
     results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
     results.truncate(50);
-    
+    results.retain(|item| !watched.contains(&item.mal_id));
+
+    // clear animes that have been watched
+
+    // for item in results {
+    //     if item.mal_id in watched {
+    //         // drop the item from results
+    //     }
+    // }
 
   
 

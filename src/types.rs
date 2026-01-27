@@ -87,7 +87,8 @@ pub struct AnimeResult {
     pub title: String,
     pub score: f32,
     pub image_url: String,
-    pub llm_description: String
+    pub llm_description: String,
+    pub mal_id: u32
 }
 
 impl fmt::Display for AnimeResult {

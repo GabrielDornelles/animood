@@ -103,6 +103,7 @@ pub fn query_anime(
                 score: final_score,
                 image_url: state.embeddings.picture_urls[idx].clone(),
                 llm_description: state.embeddings.llm_description[idx].clone(),
+                mal_id: state.embeddings.ids[idx]
             }
         })
         .collect();
