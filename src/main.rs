@@ -56,13 +56,15 @@
 //     Ok(())
 // }
 
+use std::collections::HashMap;
+
 use anyhow::{Result};
 // use animood::{
 //     build_bin_struct_from_json, 
 //     //query_anime,
 // };
 use reqwest::header::{ACCEPT, USER_AGENT};
-use animood::mal_types::parse_mal_list;
+use animood::mal_types::{MalAnimeEntry, parse_mal_list};
 use animood::{AnimeEmbeddings, search_similarity};
 use animood::types::{AnimeResult};
 
@@ -203,24 +205,58 @@ fn log_norm(value: u32, min_log: f32, max_log: f32) -> f32 {
     norm(v, min_log, max_log)
 }
 
+
+
+const PAGE_SIZE: usize = 300;
+
+async fn get_anime_list(username: &str) -> Result<Vec<MalAnimeEntry>> {
+    let client = reqwest::Client::new();
+    let mut offset = 0;
+    let mut all_entries = Vec::new();
+    
+    loop {
+        let url = format!(
+            "https://myanimelist.net/animelist/{}/load.json?status=2&offset={}",
+            username,
+            offset
+        );
+
+        let res = client
+            .get(&url)
+            .header(USER_AGENT, "Mozilla/5.0")
+            .header(ACCEPT, "application/json")
+            .send()
+            .await?;
+
+        let body = res.text().await?;
+
+        let entries = parse_mal_list(&body)?;
+
+        if entries.is_empty() {
+            break; // 🚪 no more pages
+        }
+
+        all_entries.extend(entries);
+        offset += PAGE_SIZE;
+    }
+
+    println!("Total anime fetched: {}", all_entries.len());
+    Ok(all_entries)
+
+}
+
+#[derive(Debug)]
+struct GenreStat {
+    name: String,
+    count: usize,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> { 
     //build_bin_struct_from_json("./llm_enriched.json")?;
     let embeddings = AnimeEmbeddings::load_bin("embeddings.bin")?;
-    let client = reqwest::Client::new();
 
-    let res = client
-        .get("https://myanimelist.net/animelist/Dornelles/load.json?status=7&offset=0")
-        .header(USER_AGENT, "Mozilla/5.0")
-        .header(ACCEPT, "application/json")
-        .send()
-        .await?;
-
-    let body = res.text().await?;
-    let entries = parse_mal_list(&body)?;
-    // for e in entries.iter() {
-    //     println!("{} ({})", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id);
-    // }
+    let entries = get_anime_list("Dornelles").await?;
 
     let mut personal_favorites = Vec::new();
     let mut unliked = Vec::new();
@@ -230,12 +266,28 @@ async fn main() -> Result<()> {
     let mut positive_pairs: Vec<(&[f32], f32)> = Vec::new();
     let mut negative_pairs: Vec<(&[f32], f32)> = Vec::new();
 
+    let mut genre_hashmap: HashMap<u32, GenreStat> = HashMap::new(); //genre_id: (genre_name, appearance_counter)
+
     for item in entries.iter() {
-        if item.status == Some(2) {
+        if item.status == Some(2) { // 2 == completed, just a double check, url already asking for only 2
             watched.push(item.anime_id);
+
+            for genre in item.genres.iter().flatten() {
+                genre_hashmap
+                .entry(genre.id)
+                .and_modify(|stat| stat.count += 1)
+                .or_insert(
+                    GenreStat {
+                        name: genre.name.clone(),
+                        count: 1,
+                    }
+                );
+                // look for genre.id, modify if exists, or insert if it doesnt
+            }
+
             if let Some(diff) = item.anime_score_diff {
 
-                if diff > 0.5 && diff.abs() < 99.0 {
+                if diff > 1.0 && diff.abs() < 99.0 {
                     personal_favorites.push(item);
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
@@ -243,7 +295,7 @@ async fn main() -> Result<()> {
                     } 
                 }
                 
-                if diff < - 0.5 && diff.abs() < 99.0{
+                if diff < - 1.0 && diff.abs() < 99.0{
                     unliked.push(item);
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
@@ -298,31 +350,30 @@ async fn main() -> Result<()> {
     results.truncate(50);
     results.retain(|item| !watched.contains(&item.mal_id));
 
-    // clear animes that have been watched
-
-    // for item in results {
-    //     if item.mal_id in watched {
-    //         // drop the item from results
-    //     }
-    // }
-
-  
-
-        // same post-processing as before
-    
-
     //println!("{}", body);
-    println!("Personal favorites:");
-    for e in personal_favorites.iter() {
-        println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff);
+
+
+    let mut genres_vec: Vec<(&u32, &GenreStat)> = genre_hashmap.iter().collect();
+    genres_vec.sort_by_key(|(_, stat)| std::cmp::Reverse(stat.count));
+    
+    println!("\nPrefered Genres:");
+    for item in &genres_vec {
+        println!("{} - appears: {}", item.1.name, item.1.count)
     }
+  
+    println!("\nYou liked more than most people:");
+    for e in personal_favorites.iter() {
+        println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff.unwrap());
+        // println!("genres: {:?}", e.genres);
+    }
+
 
     println!("\nPeople like it, but you didn't:");
     for e in unliked.iter() {
-         println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff);
+         println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff.unwrap());
     }
 
-    println!("\n Recommendations for you:");
+    println!("\nRecommendations for you:");
 
     for item in results {
         let title = item.title;

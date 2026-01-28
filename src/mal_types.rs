@@ -2,7 +2,25 @@
 // Designed for serde_json deserialization. Fields chosen to be
 // conservative (Option<...>) because MAL sometimes returns null/missing.
 
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
+use serde_json::Value;
+
+fn deserialize_string_or_number<'de, D>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<Value>::deserialize(deserializer)?;
+
+    Ok(match value {
+        Some(Value::String(s)) => Some(s),
+        Some(Value::Number(n)) => Some(n.to_string()),
+        Some(Value::Bool(b)) => Some(b.to_string()),
+        _ => None,
+    })
+}
+
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -32,6 +50,7 @@ pub struct MalAnimeEntry {
     // pub updated_at: Option<u64>,            // unix timestamp
 
     // anime metadata
+    #[serde(deserialize_with = "deserialize_string_or_number")] // turns out there is anime named 86, and MAL returns it as an integer :D
     pub anime_title: Option<String>,
     // pub anime_title_eng: Option<String>,
     // pub anime_num_episodes: Option<u32>,
@@ -56,7 +75,7 @@ pub struct MalAnimeEntry {
     // pub video_url: Option<String>,
 
     // // categories
-    // pub genres: Option<Vec<Genre>>,
+    pub genres: Option<Vec<Genre>>,
     // pub demographics: Option<Vec<Demographic>>,
 
     // // urls, images
