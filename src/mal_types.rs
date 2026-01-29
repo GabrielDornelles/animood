@@ -41,7 +41,7 @@ pub struct Demographic {
 #[serde(rename_all = "snake_case")]
 pub struct MalAnimeEntry {
     // user-level fields
-    pub status: Option<u8>,                 // user's list status (1=watching, 2=completed, ...)
+    pub status: Option<u8>,                 // user's list status (1=watching, 2=completed, 4=dropped...)
     pub score: Option<u8>,                  // user's score for this anime (0-10)
     pub tags: Option<String>,
     // pub is_rewatching: Option<u8>,
