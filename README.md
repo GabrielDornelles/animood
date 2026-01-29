@@ -45,7 +45,7 @@ cargo build --release
 ```bash
 # Start the API server
 cargo run --release
-# Server starts at: http://localhost:3005
+# Server starts at: http://localhost:3000
 ```
 
 ## API Usage
@@ -53,7 +53,7 @@ cargo run --release
 ### Get Recommendations
 
 ```bash
-curl -X POST http://localhost:3005/query \
+curl -X POST http://localhost:3000/query \
   -H "Content-Type: application/json" \
   -d '{
     "query": "psychological thriller with complex characters",
