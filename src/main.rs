@@ -69,6 +69,6 @@ async fn main() -> Result<()> {
     //build_bin_struct_from_json("./llm_enriched.json")?;
     let embeddings = AnimeEmbeddings::load_bin("embeddings.bin")?;
     let username = "Dornelles";
-    let recommendations = query_anime_with_user_mal(embeddings, username).await;
+    let _recommendations = query_anime_with_user_mal(embeddings, username).await;
     Ok(())
 }

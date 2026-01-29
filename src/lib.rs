@@ -12,7 +12,6 @@ pub use embedder::bin_embed_creation;
 pub use load_dataset::build_bin_struct_from_json;
 pub use search::query_anime;
 pub use types::AnimeEmbeddings;
-pub use search::search_similarity;
 pub use search::query_anime_with_user_mal;
 
 pub mod state;
