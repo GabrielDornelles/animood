@@ -91,6 +91,8 @@ pub async fn query_anime_with_user_mal(
 
     let mut genre_hashmap: HashMap<u32, GenreStat> = HashMap::new();
 
+    let mut genre_hashmap_favorites: HashMap<u32, GenreStat> = HashMap::new();
+
 
     for item in entries.iter() {
 
@@ -121,7 +123,21 @@ pub async fn query_anime_with_user_mal(
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
                          positive_pairs.push((embedding_vec, diff));
-                    } 
+                    }
+                    
+                    for genre in item.genres.iter().flatten() {
+                        genre_hashmap_favorites
+                        .entry(genre.id)
+                        .and_modify(|stat| stat.count += 1)
+                        .or_insert(
+                            GenreStat {
+                                name: genre.name.clone(),
+                                count: 1,
+                            }
+                        );
+                        // look for genre.id, modify if exists, or insert if it doesnt
+                    }
+
                 }
                 
                 if diff < - 1.0 && diff.abs() < 99.0{
@@ -188,8 +204,16 @@ pub async fn query_anime_with_user_mal(
     let mut genres_vec: Vec<(&u32, &GenreStat)> = genre_hashmap.iter().collect();
     genres_vec.sort_by_key(|(_, stat)| std::cmp::Reverse(stat.count));
 
-      println!("\nPrefered Genres:");
+    let mut genres_vec_favorites: Vec<(&u32, &GenreStat)> = genre_hashmap_favorites.iter().collect();
+    genres_vec_favorites.sort_by_key(|(_, stat)| std::cmp::Reverse(stat.count));
+
+    println!("\nWatched Genres:");
     for item in &genres_vec {
+        println!("{} - appears: {}", item.1.name, item.1.count)
+    }
+
+    println!("\nPrefered Genres:");
+    for item in &genres_vec_favorites {
         println!("{} - appears: {}", item.1.name, item.1.count)
     }
   
