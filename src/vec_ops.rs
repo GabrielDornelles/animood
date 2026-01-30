@@ -70,7 +70,7 @@ pub struct PreferenceSignal<'a> {
 // That means the function should accept an iterator of references, not a slice, either owned or referenced.
 // With this signature it accepts: &Vec<PreferenceSignal>, &[PreferenceSignal], Vec<&PreferenceSignal>, slice.iter().filter(...)
 // anything that implements IntoIterator
-pub fn weighted_centroid_new<'a, I>(signal: I) -> Option<Vec<f32>>
+pub fn weighted_centroid<'a, I>(signal: I) -> Option<Vec<f32>>
 where
     I: IntoIterator<Item = &'a PreferenceSignal<'a>>,
 {
@@ -126,49 +126,6 @@ where
     }
 
     clip(&mut acc, 10.0);
-    Some(acc)
-}
-
-
-
-
-pub fn weighted_centroid(pairs: &[(&[f32], f32, Vec<u32>)]) -> Option<Vec<f32>> {
-    if pairs.is_empty() {
-        return None;
-    }
-
-    let dim = pairs[0].0.len();
-    let mut acc = vec![0.0f32; dim];
-    let mut weight_sum = 0.0f32;
-
-    for (emb, weight, _) in pairs {
-        // Defensive: ignore broken data
-        if emb.len() != dim {
-            continue;
-        }
-
-        let w = weight.abs();
-        if w == 0.0 {
-            continue;
-        }
-
-        weight_sum += w;
-        for i in 0..dim {
-            acc[i] += emb[i] * w;
-        }
-    }
-
-    if weight_sum == 0.0 {
-        return None;
-    }
-
-    for v in &mut acc {
-        *v /= weight_sum;
-    }
-
-    // Keep centroid stable for similarity search
-    clip(&mut acc, 10.0);
-
     Some(acc)
 }
 
