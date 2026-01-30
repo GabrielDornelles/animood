@@ -50,7 +50,7 @@ pub fn search_similarity(
 }
 
 
-pub fn weighted_centroid(pairs: &[(&[f32], f32)]) -> Option<Vec<f32>> {
+pub fn weighted_centroid(pairs: &[(&[f32], f32, Vec<u32>)]) -> Option<Vec<f32>> {
     if pairs.is_empty() {
         return None;
     }
@@ -59,7 +59,7 @@ pub fn weighted_centroid(pairs: &[(&[f32], f32)]) -> Option<Vec<f32>> {
     let mut acc = vec![0.0f32; dim];
     let mut weight_sum = 0.0f32;
 
-    for (emb, weight) in pairs {
+    for (emb, weight, _) in pairs {
         // Defensive: ignore broken data
         if emb.len() != dim {
             continue;

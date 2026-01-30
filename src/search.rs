@@ -71,6 +71,69 @@ struct GenreStat {
     count: usize,
 }
 
+struct GenreRatio {
+    id: u32,
+    name: String,
+    ratio: f32
+}
+
+
+fn genre_reason_map() -> HashMap<u32, &'static str> {
+    HashMap::from([
+        (1,  "you enjoy high-energy stories, intense conflicts, and momentum that never slows down"), 
+        // Action
+
+        (8,  "you gravitate toward emotionally driven stories that explore people, relationships, and inner struggles"), 
+        // Drama
+
+        (22, "you like character-focused stories where emotions, bonds, and intimacy take center stage"), 
+        // Romance
+
+        (10, "you enjoy immersive worlds, imaginative settings, and stories that go beyond everyday reality"), 
+        // Fantasy
+
+        (37, "you’re drawn to stories that blur the line between the real and the unseen"), 
+        // Supernatural
+
+        (2,  "you enjoy journeys, exploration, and characters growing through challenges along the way"), 
+        // Adventure
+
+        (4,  "you appreciate humor as part of storytelling, whether lighthearted or cleverly woven into the plot"), 
+        // Comedy
+
+        (7,  "you like narratives that keep you guessing and reward attention to detail"), 
+        // Mystery
+
+        (46, "you tend to enjoy critically acclaimed works with strong artistic or narrative ambition"), 
+        // Award Winning
+
+        (41, "you enjoy tension-driven stories that keep you on edge"), 
+        // Suspense
+
+        (24, "you’re interested in speculative ideas, futuristic themes, and thought-provoking concepts"), 
+        // Sci-Fi
+
+        (9,  "you don’t shy away from provocative or playful elements mixed into the story"), 
+        // Ecchi
+
+        (30, "you appreciate stories centered around competition, discipline, and personal growth"), 
+        // Sports
+
+        (14, "you enjoy darker atmospheres and stories designed to unsettle or disturb"), 
+        // Horror
+
+        (5,  "you’re open to experimental, unconventional, and artistically bold storytelling"), 
+        // Avant Garde
+
+        (47, "you enjoy cozy, detail-oriented stories that celebrate food, craft, and everyday pleasures"), 
+        // Gourmet
+
+        (36, "you appreciate quiet, grounded stories focused on daily life and subtle emotions"), 
+        // Slice of Life
+    ])
+}
+
+
 pub async fn query_anime_with_user_mal(
     //state: &AppState,
     embeddings: AnimeEmbeddings,
@@ -86,8 +149,8 @@ pub async fn query_anime_with_user_mal(
     let mut dropped = Vec::new();
 
     // embedding, diff_score, 
-    let mut positive_pairs: Vec<(&[f32], f32)> = Vec::new();
-    let mut negative_pairs: Vec<(&[f32], f32)> = Vec::new();
+    let mut positive_pairs: Vec<(&[f32], f32, Vec<u32>)> = Vec::new();
+    let mut negative_pairs: Vec<(&[f32], f32, Vec<u32>)> = Vec::new();
 
     let mut genre_hashmap: HashMap<u32, GenreStat> = HashMap::new();
 
@@ -122,7 +185,9 @@ pub async fn query_anime_with_user_mal(
                     personal_favorites.push(item);
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
-                         positive_pairs.push((embedding_vec, diff));
+                        let genre_ids: Vec<u32> = item.genres.iter().flatten().map(|genre| genre.id).collect();
+                        
+                        positive_pairs.push((embedding_vec, diff, genre_ids));
                     }
                     
                     for genre in item.genres.iter().flatten() {
@@ -144,7 +209,8 @@ pub async fn query_anime_with_user_mal(
                     unliked.push(item);
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
-                         negative_pairs.push((embedding_vec, diff));
+                        let genre_ids: Vec<u32> = item.genres.iter().flatten().map(|genre| genre.id).collect();
+                         negative_pairs.push((embedding_vec, diff, genre_ids));
                     } 
                 }
             }
@@ -168,8 +234,8 @@ pub async fn query_anime_with_user_mal(
         .map(|(idx, embedding_score)| {
             let final_score =
                 0.8 * embedding_score +
-                0.05 * norm(embeddings.scores[idx], SCORE_MIN, SCORE_MAX) +
-                0.05 * log_norm(
+                0.02 * norm(embeddings.scores[idx], SCORE_MIN, SCORE_MAX) +
+                0.08 * log_norm(
                     embeddings.members[idx],
                     MEMBERS_LOG_MIN,
                     MEMBERS_LOG_MAX,
@@ -201,6 +267,24 @@ pub async fn query_anime_with_user_mal(
     results.truncate(50);
     // Can return here
   
+    
+    let mut genres_ratio = Vec::new();
+
+    for (genre_id, stat) in &genre_hashmap_favorites {
+        if let Some(global_stat) = genre_hashmap.get(genre_id) {
+            genres_ratio.push(
+                GenreRatio {
+                    id: *genre_id,
+                    name: stat.name.clone(),
+                    ratio: (stat.count as f32 / global_stat.count as f32) * (1.0 + stat.count as f32).ln()
+                }
+            ); 
+        }
+    }
+    genres_ratio.sort_by(|a, b| {
+        b.ratio.partial_cmp(&a.ratio).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
     let mut genres_vec: Vec<(&u32, &GenreStat)> = genre_hashmap.iter().collect();
     genres_vec.sort_by_key(|(_, stat)| std::cmp::Reverse(stat.count));
 
@@ -216,6 +300,82 @@ pub async fn query_anime_with_user_mal(
     for item in &genres_vec_favorites {
         println!("{} - appears: {}", item.1.name, item.1.count)
     }
+
+    println!("\nPrefered Genres Ratio:");
+    for item in &genres_ratio {
+        println!("{} - appears: {}", item.name, item.ratio)
+    }
+
+    let top_5_genres_ratio = &genres_ratio[..genres_ratio.len().min(5)];
+
+
+    let genre_reasons = genre_reason_map();
+    for top_genre in top_5_genres_ratio {
+        let genre_pairs: Vec<_> = positive_pairs
+            .iter()
+            .filter(|(_, _, genre_ids)| genre_ids.contains(&top_genre.id))
+            .cloned()
+            .collect();
+        // this is sub optimal as its clonning the vectors where it could just send a subset of the original by reference, but tbh thats beyond my rust level rn
+        let genre_taste = weighted_centroid(&genre_pairs).unwrap();
+
+        let top = search_similarity(
+            &genre_taste,
+            &embeddings.embeddings,
+            100 * 2,
+        );
+
+
+    let mut results: Vec<AnimeResult> = top
+        .into_iter()
+        .map(|(idx, embedding_score)| {
+            let final_score =
+                0.8 * embedding_score +
+                0.02 * norm(embeddings.scores[idx], SCORE_MIN, SCORE_MAX) +
+                0.08 * log_norm(
+                    embeddings.members[idx],
+                    MEMBERS_LOG_MIN,
+                    MEMBERS_LOG_MAX,
+                ) +
+                0.1 * log_norm(
+                    embeddings.favorites[idx],
+                    FAVORITES_LOG_MIN,
+                    FAVORITES_LOG_MAX,
+                );
+
+            AnimeResult {
+                title: embeddings.names[idx].clone(),
+                score: final_score,
+                image_url: embeddings.picture_urls[idx].clone(),
+                llm_description: embeddings.llm_description[idx].clone(),
+                mal_id: embeddings.ids[idx]
+            }
+        })
+        .collect();
+    
+    
+        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+        results.retain(|item| !watched.contains(&item.mal_id) && !dropped.contains(&item.mal_id));
+        results.truncate(20);
+
+        // println!("\nRecommendations for you for {}:", top_genre.name);
+        let reason = genre_reasons
+            .get(&top_genre.id)
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("Recommendations for: {}", top_genre.name));
+
+        
+        //.unwrap_or_default(top_genre.name);
+        println!("\n{}", reason);
+
+        for item in &results {
+            let title = &item.title;
+            println!("{title}")
+        }
+
+    }
+
+
   
     println!("\nYou liked more than most people:");
     for e in personal_favorites.iter() {
