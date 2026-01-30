@@ -6,7 +6,7 @@ use crate::types::AnimeEmbeddings;
 use crate::types::{AnimeResult};
 use crate::embedder::embed;
 use crate::AppState;
-use crate::vec_ops::{search_similarity, norm, log_norm, build_taste_query, weighted_centroid};
+use crate::vec_ops::{search_similarity, norm, log_norm, build_taste_query, weighted_centroid, weighted_centroid_new, PreferenceSignal};
 
 // Dataset normalization constants (computed offline)
 pub const SCORE_MIN: f32 = 5.04;
@@ -149,8 +149,13 @@ pub async fn query_anime_with_user_mal(
     let mut dropped = Vec::new();
 
     // embedding, diff_score, 
-    let mut positive_pairs: Vec<(&[f32], f32, Vec<u32>)> = Vec::new();
-    let mut negative_pairs: Vec<(&[f32], f32, Vec<u32>)> = Vec::new();
+    // let mut positive_pairs: Vec<(&[f32], f32, Vec<u32>)> = Vec::new();
+    // let mut negative_pairs: Vec<(&[f32], f32, Vec<u32>)> = Vec::new();
+
+    let mut positive_anime: Vec<PreferenceSignal> = Vec::new();
+    let mut negative_anime: Vec<PreferenceSignal> = Vec::new();
+
+ 
 
     let mut genre_hashmap: HashMap<u32, GenreStat> = HashMap::new();
 
@@ -187,7 +192,14 @@ pub async fn query_anime_with_user_mal(
                     if let Some(embedding_vec) = embedding {
                         let genre_ids: Vec<u32> = item.genres.iter().flatten().map(|genre| genre.id).collect();
                         
-                        positive_pairs.push((embedding_vec, diff, genre_ids));
+                        //positive_pairs.push((embedding_vec, diff, genre_ids.clone()));
+                        positive_anime.push(
+                                PreferenceSignal {
+                                embedding: embedding_vec,
+                                diff: diff,
+                                genres: genre_ids
+                            }
+                        )
                     }
                     
                     for genre in item.genres.iter().flatten() {
@@ -210,15 +222,26 @@ pub async fn query_anime_with_user_mal(
                     let embedding = embeddings.get_embedding(item.anime_id)?;
                     if let Some(embedding_vec) = embedding {
                         let genre_ids: Vec<u32> = item.genres.iter().flatten().map(|genre| genre.id).collect();
-                         negative_pairs.push((embedding_vec, diff, genre_ids));
-                    } 
+                         //negative_pairs.push((embedding_vec, diff, genre_ids.clone()));
+                         negative_anime.push(
+                                PreferenceSignal {
+                                embedding: embedding_vec,
+                                diff: diff,
+                                genres: genre_ids
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 
-    let positive_taste = weighted_centroid(&positive_pairs);
-    let negative_taste = weighted_centroid(&negative_pairs);
+    // let positive_taste = weighted_centroid(&positive_pairs);
+    // let negative_taste = weighted_centroid(&negative_pairs);
+
+
+    let positive_taste = weighted_centroid_new(&positive_anime);
+    let negative_taste = weighted_centroid_new(&negative_anime);
 
     let taste_query = build_taste_query(positive_taste, negative_taste).unwrap();
 
@@ -311,13 +334,13 @@ pub async fn query_anime_with_user_mal(
 
     let genre_reasons = genre_reason_map();
     for top_genre in top_5_genres_ratio {
-        let genre_pairs: Vec<_> = positive_pairs
+       
+        let genre_pairs: Vec<_> = positive_anime
             .iter()
-            .filter(|(_, _, genre_ids)| genre_ids.contains(&top_genre.id))
-            .cloned()
+            .filter(|item| item.genres.contains(&top_genre.id))
             .collect();
-        // this is sub optimal as its clonning the vectors where it could just send a subset of the original by reference, but tbh thats beyond my rust level rn
-        let genre_taste = weighted_centroid(&genre_pairs).unwrap();
+
+        let genre_taste = weighted_centroid_new(genre_pairs).unwrap();
 
         let top = search_similarity(
             &genre_taste,

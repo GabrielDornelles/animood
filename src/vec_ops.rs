@@ -50,6 +50,88 @@ pub fn search_similarity(
 }
 
 
+#[derive(Debug)]
+pub struct PreferenceSignal<'a> {
+    pub embedding: &'a [f32],
+    pub diff: f32,
+    pub genres: Vec<u32>,
+} // lives as long as embedding field
+
+
+// Originally I wrote this as signal: &[&PreferenceSignal] - but got into a problem:
+// I want zero copies, and I want both:
+// - full vectors (Vec<PreferenceSignal>)
+// - filtered subsets by reference (genre subsets)
+// Full:        &[PreferenceSignal]
+// Filtered:    &[&PreferenceSignal]
+
+// The centroid function should not care about ownership or how the vector / array is given.
+// It only needs read-only access to embeddings + weights.
+// That means the function should accept an iterator of references, not a slice, either owned or referenced.
+// With this signature it accepts: &Vec<PreferenceSignal>, &[PreferenceSignal], Vec<&PreferenceSignal>, slice.iter().filter(...)
+// anything that implements IntoIterator
+pub fn weighted_centroid_new<'a, I>(signal: I) -> Option<Vec<f32>>
+where
+    I: IntoIterator<Item = &'a PreferenceSignal<'a>>,
+{
+    let mut iter = signal.into_iter();
+
+    // Equivalent to `if signal.is_empty() return none`
+    let first = iter.next()?;
+    let dim = first.embedding.len();
+
+    let mut acc = vec![0.0f32; dim];
+    let mut weight_sum = 0.0f32;
+
+    // process first element so we don't need indexing
+    {
+        let emb = first.embedding;
+        let weight = first.diff;
+
+        let w = weight.abs();
+        if w != 0.0 {
+            weight_sum += w;
+            for i in 0..dim {
+                acc[i] += emb[i] * w;
+            }
+        }
+    }
+
+    // rest
+    for item in iter {
+        let emb = item.embedding;
+        let weight = item.diff;
+
+        if emb.len() != dim {
+            continue;
+        }
+
+        let w = weight.abs();
+        if w == 0.0 {
+            continue;
+        }
+
+        weight_sum += w;
+        for i in 0..dim {
+            acc[i] += emb[i] * w;
+        }
+    }
+
+    if weight_sum == 0.0 {
+        return None;
+    }
+
+    for v in &mut acc {
+        *v /= weight_sum;
+    }
+
+    clip(&mut acc, 10.0);
+    Some(acc)
+}
+
+
+
+
 pub fn weighted_centroid(pairs: &[(&[f32], f32, Vec<u32>)]) -> Option<Vec<f32>> {
     if pairs.is_empty() {
         return None;
