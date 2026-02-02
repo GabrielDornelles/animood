@@ -1,4 +1,5 @@
 use anyhow::Result;
+use serde::Serialize;
 
 use crate::mal_functions::get_anime_list;
 use crate::types::AnimeEmbeddings;
@@ -17,7 +18,6 @@ pub const MEMBERS_LOG_MAX: f32 = 15.267;
 
 pub const FAVORITES_LOG_MIN: f32 = 0.693;
 pub const FAVORITES_LOG_MAX: f32 = 12.413;
-
 
 pub fn query_anime(
     state: &AppState,
@@ -108,12 +108,13 @@ fn build_ranked_results(
 
 
 pub async fn query_anime_with_user_mal(
-    //state: &AppState,
-    embeddings: AnimeEmbeddings,
-    username: &str,
-) -> Result<Vec<AnimeResult>> {
-    //let embeddings = &state.embeddings;//AnimeEmbeddings::load_bin("embeddings.bin")?;
-    let entries = get_anime_list(username).await?;
+    state: &AppState,
+    // embeddings: AnimeEmbeddings,
+    username: String,
+) -> Result<RecommendationResponse> {
+    let embeddings = &state.embeddings;//AnimeEmbeddings::load_bin("embeddings.bin")?;
+
+    let entries = get_anime_list(&username).await?;
     let user_data = gather_mal_user_data(&entries, &embeddings)?;
 
     let positive_taste = weighted_centroid(&user_data.higher_than_avg_scored_anime);
@@ -126,20 +127,21 @@ pub async fn query_anime_with_user_mal(
         &embeddings.embeddings,
         100 * 2,
     );
-    let results = build_ranked_results(
+    let global_recommendations = build_ranked_results(
         top, &embeddings, &user_data, 20
     )?;
   
-    println!("\nWatched Genres:");
-    for item in &user_data.global_genres_sorted {
-        println!("{} - appears: {}", item.1.name, item.1.count)
-    }
+    // println!("\nWatched Genres:");
+    // for item in &user_data.global_genres_sorted {
+    //     println!("{} - appears: {}", item.1.name, item.1.count)
+    // }
 
-    println!("\nPrefered Genres:");
-    for item in &user_data.favorite_genres_sorted{
-        println!("{} - appears: {}", item.1.name, item.1.count)
-    }
+    // println!("\nPrefered Genres:");
+    // for item in &user_data.favorite_genres_sorted{
+    //     println!("{} - appears: {}", item.1.name, item.1.count)
+    // }
 
+    let mut genre_recommendations = Vec::new();
     let genre_reasons = genre_reason_map();
     for top_genre in &user_data.top_5_genres_ratio {
        
@@ -156,40 +158,138 @@ pub async fn query_anime_with_user_mal(
             100 * 2,
         );
 
-        let results = build_ranked_results(top, &embeddings, &user_data, 20)?;
+        let recommendations = build_ranked_results(top, &embeddings, &user_data, 20)?;
  
         let reason = genre_reasons
             .get(&top_genre.id)
             .map(|s| s.to_string())
             .unwrap_or_else(|| format!("Recommendations for: {}", top_genre.name));
+        
+        genre_recommendations.push(
+            GenreRecommendation {
+                genre_id: top_genre.id,
+                genre_name: top_genre.name.clone(),
+                reason,
+                recommendations,
+            });
 
-        println!("\n{}", reason);
+        // println!("\n{}", reason);
 
-        for item in &results {
-            let title = &item.title;
-            println!("{title}")
-        }
+        // for item in &results {
+        //     let title = &item.title;
+        //     println!("{title}")
+        // }
 
     }
 
-    println!("\nYou liked more than most people:");
-    for e in user_data.favorites.iter() {
-        println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff.unwrap());
-        // println!("genres: {:?}", e.genres);
-    }
+    let global_genres = user_data
+    .global_genres_sorted
+    .iter()
+    .map(|(id, stat)| GenreCount {
+        id: *id,
+        name: stat.name.clone(),
+        count: stat.count,
+    })
+    .collect();
 
-    println!("\nPeople like it, but you didn't:");
-    for e in user_data.unpreferred.iter() {
-         println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff.unwrap());
-    }
+    let favorite_genres = user_data
+        .favorite_genres_sorted
+        .iter()
+        .map(|(id, stat)| GenreCount {
+            id: *id,
+            name: stat.name.clone(),
+            count: stat.count,
+        })
+        .collect();
+    
+    let favorites: Vec<AnimeScoreDiff> = user_data.favorites
+        .iter()
+        .map(|e| AnimeScoreDiff {
+            anime_id: e.anime_id,
+            title: e.anime_title.clone(),
+            score_diff: e.anime_score_diff,
+        })
+        .collect();
 
-    println!("\nRecommendations for you:");
+    let unpreferred: Vec<AnimeScoreDiff> = user_data.unpreferred
+        .iter()
+        .map(|e| AnimeScoreDiff {
+            anime_id: e.anime_id,
+            title: e.anime_title.clone(),
+            score_diff: e.anime_score_diff,
+            //picutre: e.images
+        })
+        .collect();
+    
+    Ok(RecommendationResponse {
+        global_recommendations,
+        genre_recommendations,
+        global_genres,
+        favorite_genres,
+        favorites,
+        unpreferred,
+    })
 
-    for item in &results {
-        let title = &item.title;
-        println!("{title}")
-    }
+
+    // println!("\nYou liked more than most people:");
+    // for e in user_data.favorites.iter() {
+    //     println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff.unwrap());
+    //     // println!("genres: {:?}", e.genres);
+    // }
+
+    // println!("\nPeople like it, but you didn't:");
+    // for e in user_data.unpreferred.iter() {
+    //      println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff.unwrap());
+    // }
+
+    // println!("\nRecommendations for you:");
+
+    // for item in &results {
+    //     let title = &item.title;
+    //     println!("{title}")
+    // }
   
-    Ok(results)
+    // Ok(results)
 
+}
+
+#[derive(Serialize)]
+#[derive(Debug)]
+pub struct AnimeScoreDiff {
+    pub anime_id: u32,
+    pub title: Option<String>,
+    pub score_diff: Option<f32>,
+}
+
+
+#[derive(Serialize)]
+#[derive(Debug)]
+pub struct GenreCount {
+    pub id: u32,
+    pub name: String,
+    pub count: usize,
+}
+
+
+#[derive(Serialize)]
+#[derive(Debug)]
+pub struct GenreRecommendation {
+    pub genre_id: u32,
+    pub genre_name: String,
+    pub reason: String,
+    pub recommendations: Vec<AnimeResult>,
+}
+
+#[derive(Serialize)]
+#[derive(Debug)]
+pub struct RecommendationResponse {
+    pub global_recommendations: Vec<AnimeResult>,
+
+    pub genre_recommendations: Vec<GenreRecommendation>,
+
+    pub global_genres: Vec<GenreCount>,
+    pub favorite_genres: Vec<GenreCount>,
+
+    pub favorites: Vec<AnimeScoreDiff>,
+    pub unpreferred: Vec<AnimeScoreDiff>,
 }

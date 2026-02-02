@@ -1,10 +1,11 @@
 use anyhow::{Result};
 use reqwest::header::{ACCEPT, USER_AGENT};
-use crate::mal_types::{MalAnimeEntry, parse_mal_list};
+
 use std::collections::{HashMap, HashSet};
 
 use crate::vec_ops::{PreferenceSignal};
 use crate::types::AnimeEmbeddings;
+use crate::mal_types::{MalAnimeEntry, parse_mal_list};
 
 const PAGE_SIZE: usize = 300;
 

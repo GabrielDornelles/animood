@@ -104,4 +104,5 @@ impl fmt::Display for AnimeResult {
 pub struct QueryRequest {
     pub query: String,
     pub k: Option<usize>,
+    pub username: Option<String>
 }
