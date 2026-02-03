@@ -23,7 +23,8 @@ pub struct AnimeData {
     pub images: Option<Images>,
     pub score: f32,
     pub members: u32,
-    pub favorites: u32
+    pub favorites: u32,
+    pub id: u32,
 }
 
 // ---
@@ -35,7 +36,8 @@ pub struct AnimeFilteredData {
     pub picture: String,
     pub score: f32,
     pub members: u32,
-    pub favorites: u32
+    pub favorites: u32,
+    pub id: u32
 }
 
 
@@ -47,7 +49,8 @@ pub struct AnimeEmbeddings {
     pub scores: Vec<f32>,
     pub members: Vec<u32>,
     pub favorites: Vec<u32>,
-    pub llm_description: Vec<String>
+    pub llm_description: Vec<String>,
+    pub ids: Vec<u32>
 }
 
 impl AnimeEmbeddings {
@@ -71,6 +74,11 @@ impl AnimeEmbeddings {
         let embeddings: Self = bincode::deserialize_from(reader)?;
         Ok(embeddings)
     }
+
+    pub fn get_embedding(&self, mal_id: u32) -> Result<Option<&[f32]>> {
+        let idx: Option<usize> = self.ids.iter().position(|&id| id == mal_id);
+        Ok(idx.map(|i| self.embeddings[i].as_slice()))
+    }
 }
 
 // for the frontend to consume
@@ -79,7 +87,8 @@ pub struct AnimeResult {
     pub title: String,
     pub score: f32,
     pub image_url: String,
-    pub llm_description: String
+    pub llm_description: String,
+    pub mal_id: u32
 }
 
 impl fmt::Display for AnimeResult {
@@ -95,4 +104,5 @@ impl fmt::Display for AnimeResult {
 pub struct QueryRequest {
     pub query: String,
     pub k: Option<usize>,
+    pub username: Option<String>
 }

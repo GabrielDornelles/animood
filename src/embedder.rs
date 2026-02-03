@@ -46,7 +46,7 @@ pub fn embed(
 }
 
 
-pub fn embed_at_build(synopsis: Vec<String>) -> Result<Vec<Vec<f32>>> {
+pub fn bin_embed_creation(synopsis: Vec<String>) -> Result<Vec<Vec<f32>>> {
     let (model, mut tokenizer) = build_model_and_tokenizer()?;
     let device = &model.device;
 

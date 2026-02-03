@@ -5,6 +5,7 @@ use candle_transformers::models::jina_bert::{
     BertModel, Config, PositionEmbeddingType
 };
 use std::path::Path;
+use tracing::{info};
 
 pub fn build_model_and_tokenizer_from_disk(
     model_dir: impl AsRef<Path>,
@@ -23,8 +24,8 @@ pub fn build_model_and_tokenizer_from_disk(
         anyhow::bail!("Missing tokenizer.json at {:?}", tokenizer_path);
     }
 
-    println!("Loading model from: {:?}", model_path);
-    println!("Loading tokenizer from: {:?}", tokenizer_path);
+    info!("Loading model from: {:?}", model_path);
+    info!("Loading tokenizer from: {:?}", tokenizer_path);
 
     // ---- tokenizer ----
     let tokenizer = tokenizers::Tokenizer::from_file(&tokenizer_path)
@@ -68,14 +69,6 @@ pub fn build_model_and_tokenizer_from_disk(
     Ok((model, tokenizer))
 }
 
-
-
-// --------------------
-
-// use anyhow::{Result};
-// use candle_core::{DType, Device};
-// use candle_nn::VarBuilder;
-// use candle_transformers::models::jina_bert::{BertModel, Config, PositionEmbeddingType};
 
 pub fn build_model_and_tokenizer() -> Result<(BertModel, tokenizers::Tokenizer)> {
     use hf_hub::{api::sync::Api, Repo, RepoType};
