@@ -141,16 +141,6 @@ pub async fn query_anime_with_user_mal(
     let global_recommendations = build_ranked_results(
         top, &embeddings, &user_data, 20
     )?;
-  
-    // println!("\nWatched Genres:");
-    // for item in &user_data.global_genres_sorted {
-    //     println!("{} - appears: {}", item.1.name, item.1.count)
-    // }
-
-    // println!("\nPrefered Genres:");
-    // for item in &user_data.favorite_genres_sorted{
-    //     println!("{} - appears: {}", item.1.name, item.1.count)
-    // }
 
     let mut genre_recommendations = Vec::new();
     let genre_reasons = genre_reason_map();
@@ -183,14 +173,6 @@ pub async fn query_anime_with_user_mal(
                 reason,
                 recommendations,
             });
-
-        // println!("\n{}", reason);
-
-        // for item in &results {
-        //     let title = &item.title;
-        //     println!("{title}")
-        // }
-
     }
 
     let global_genres = user_data
@@ -244,28 +226,6 @@ pub async fn query_anime_with_user_mal(
         favorites,
         unpreferred,
     })
-
-
-    // println!("\nYou liked more than most people:");
-    // for e in user_data.favorites.iter() {
-    //     println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff.unwrap());
-    //     // println!("genres: {:?}", e.genres);
-    // }
-
-    // println!("\nPeople like it, but you didn't:");
-    // for e in user_data.unpreferred.iter() {
-    //      println!("{} ({}) - Score diff: {:?}", e.anime_title.as_deref().unwrap_or("<nil>"), e.anime_id, e.anime_score_diff.unwrap());
-    // }
-
-    // println!("\nRecommendations for you:");
-
-    // for item in &results {
-    //     let title = &item.title;
-    //     println!("{title}")
-    // }
-  
-    // Ok(results)
-
 }
 
 #[derive(Serialize)]

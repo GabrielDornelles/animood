@@ -78,6 +78,8 @@ pub fn genre_reason_map() -> HashMap<u32, &'static str> {
         (5,  "you're open to **Avant Garde** storytelling that's experimental and unconventional"),
         (47, "you enjoy **Gourmet** stories that are cozy and celebrate food, craft, and everyday pleasures"),
         (36, "you appreciate **Slice of Life** stories that are quiet, grounded, and focus on daily life"),
+        (26, "you're drawn to **Girls Love** stories that focus on emotional connection, intimacy, and relationships between women"),
+        (28, "you're interested in **Boys Love** stories that explore emotional bonds, romance, and relationships between men")
     ])
 }
 

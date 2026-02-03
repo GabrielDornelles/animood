@@ -9,6 +9,7 @@ use animood::{
     model::build_model_and_tokenizer_from_disk,
     types::AnimeEmbeddings,
 };
+use tracing::{info};
 
 use axum::{Json};
 use serde_json::json;
@@ -27,12 +28,12 @@ async fn main() -> Result<()> {
         .with_env_filter(EnvFilter::from_default_env())
         .init();
 
-    println!("Loading model and tokenizer...");
+    info!("Loading model and tokenizer...");
     let model_dir = std::env::var("MODEL_DIR")
     .unwrap_or_else(|_| "./app/models/jina-embeddings-v2-small-en".into());
     let (model, tokenizer) = build_model_and_tokenizer_from_disk(&model_dir)?;
 
-    println!("Loading embeddings.bin...");
+    info!("Loading embeddings.bin...");
     let embeddings = AnimeEmbeddings::load_bin("embeddings.bin")?;
 
     let state = Arc::new(AppState {
@@ -53,7 +54,7 @@ async fn main() -> Result<()> {
         .with_state(state)
         .layer(cors);
 
-    println!("Server running at http://0.0.0.0:3000");
+    info!("Server running at http://0.0.0.0:3000");
     use tokio::net::TcpListener;
 
     let listener = TcpListener::bind("0.0.0.0:3000").await?;
@@ -62,23 +63,3 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
-
-
-// use anyhow::{Result};
-// // use animood::{
-// //     build_bin_struct_from_json, 
-// //     //query_anime,
-// // };
-// use animood::{AnimeEmbeddings};
-// use animood::query_anime_with_user_mal;
-
-// #[tokio::main]
-// async fn main() -> Result<()> { 
-//     //build_bin_struct_from_json("./llm_enriched.json")?;
-//     let embeddings: AnimeEmbeddings = AnimeEmbeddings::load_bin("embeddings.bin")?;
-//     let username = "Dornelles";
-//     let recommendations = query_anime_with_user_mal(embeddings, username).await;
-//     println!("{:?}", recommendations);
-//     Ok(())
-// }
