@@ -81,7 +81,7 @@ pub struct MalAnimeEntry {
     // // urls, images
     // pub title_localized: Option<String>,
     // pub anime_url: Option<String>,
-    // pub anime_image_path: Option<String>,
+    pub anime_image_path: Option<String>,
 
     // // list UI / misc
     // pub is_added_to_list: Option<bool>,

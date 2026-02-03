@@ -1,6 +1,6 @@
 use anyhow::{Result};
 use reqwest::header::{ACCEPT, USER_AGENT};
-
+use tracing::{info};
 use std::collections::{HashMap, HashSet};
 
 use crate::vec_ops::{PreferenceSignal};
@@ -39,8 +39,11 @@ pub async fn get_anime_list(username: &str) -> Result<Vec<MalAnimeEntry>> {
         all_entries.extend(entries);
         offset += PAGE_SIZE;
     }
+ 
+    info!(
+        "Total anime fetched for '{}': {}", username, all_entries.len()
+    );
 
-    println!("Total anime fetched: {} for {}", all_entries.len(), username);
     Ok(all_entries)
 
 }

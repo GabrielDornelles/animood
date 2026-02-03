@@ -1,5 +1,5 @@
 use std::sync::Arc;
-
+use tracing_subscriber::{EnvFilter};
 use anyhow::Result;
 use axum::{Router, routing::{post, get}};
 use tower_http::cors::{CorsLayer, Any};
@@ -22,6 +22,10 @@ async fn health() -> Json<serde_json::Value> {
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
+
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .init();
 
     println!("Loading model and tokenizer...");
     let model_dir = std::env::var("MODEL_DIR")

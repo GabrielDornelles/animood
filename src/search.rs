@@ -23,7 +23,7 @@ pub fn query_anime(
     state: &AppState,
     query: &str,
     k: usize,
-) -> Result<Vec<AnimeResult>> {
+) -> Result<RecommendationResponse> {
     let query_emb = &embed(
         &state.model,
         &state.tokenizer,
@@ -32,7 +32,7 @@ pub fn query_anime(
 
     let top = search_similarity(query_emb, &state.embeddings.embeddings, k * 2);
 
-    let mut results: Vec<AnimeResult> = top
+    let mut global_recommendations: Vec<AnimeResult> = top
         .into_iter()
         .map(|(idx, embedding_score)| {
             let final_score =
@@ -59,10 +59,21 @@ pub fn query_anime(
         })
         .collect();
 
-    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
-    results.truncate(20);
+    global_recommendations.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
+    global_recommendations.truncate(20);
 
-    Ok(results)
+    
+    //Ok(results)
+    Ok(
+        RecommendationResponse {
+            global_recommendations: global_recommendations,
+            genre_recommendations: Vec::new(),
+            global_genres: Vec::new(),
+            favorite_genres: Vec::new(),
+            favorites: Vec::new(),
+            unpreferred: Vec::new(),
+        }
+    )
 }
 
 
@@ -208,6 +219,8 @@ pub async fn query_anime_with_user_mal(
             anime_id: e.anime_id,
             title: e.anime_title.clone(),
             score_diff: e.anime_score_diff,
+            image_url: e.anime_image_path.clone()
+            
         })
         .collect();
 
@@ -217,7 +230,9 @@ pub async fn query_anime_with_user_mal(
             anime_id: e.anime_id,
             title: e.anime_title.clone(),
             score_diff: e.anime_score_diff,
-            //picutre: e.images
+            image_url: e.anime_image_path.clone()
+            //image_url: e.image_url,
+            // picutre: e.images
         })
         .collect();
     
@@ -259,6 +274,7 @@ pub struct AnimeScoreDiff {
     pub anime_id: u32,
     pub title: Option<String>,
     pub score_diff: Option<f32>,
+    pub image_url: Option<String>
 }
 
 
