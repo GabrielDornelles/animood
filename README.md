@@ -5,7 +5,7 @@
 ![Candle](https://img.shields.io/badge/Candle-FF6B6B?style=for-the-badge)
 ![Jina AI](https://img.shields.io/badge/Jina_AI-000000?style=for-the-badge&logo=jinaai&logoColor=white)
 
-![alt text](assets/image.png)
+![alt text](assets/animood.png)
 
 A high-quality anime recommendation engine built with Rust, powered by semantic search and LLM-enriched data. Finds anime based on thematic similarity, story elements, and user preferences given his **Myanimelist username**.
 
