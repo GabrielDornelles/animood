@@ -1,24 +1,22 @@
 use std::sync::Arc;
-use tracing_subscriber::{EnvFilter};
+use tracing_subscriber::EnvFilter;
 use anyhow::Result;
 use axum::{Router, routing::{post, get}};
 use tower_http::cors::{CorsLayer, Any};
 use animood::{
     AppState,
-    api::query_handler,
+    api::{query_handler, compatibility_handler, archetype_handler},
     model::build_model_and_tokenizer_from_disk,
     types::AnimeEmbeddings,
+    social::ProfileCache,
 };
-use tracing::{info};
-
-use axum::{Json};
+use tracing::info;
+use axum::Json;
 use serde_json::json;
-
 
 async fn health() -> Json<serde_json::Value> {
     Json(json!({"status": "ok"}))
 }
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -30,7 +28,7 @@ async fn main() -> Result<()> {
 
     info!("Loading model and tokenizer...");
     let model_dir = std::env::var("MODEL_DIR")
-    .unwrap_or_else(|_| "./app/models/jina-embeddings-v2-small-en".into());
+        .unwrap_or_else(|_| "./app/models/jina-embeddings-v2-small-en".into());
     let (model, tokenizer) = build_model_and_tokenizer_from_disk(&model_dir)?;
 
     info!("Loading embeddings.bin...");
@@ -40,26 +38,25 @@ async fn main() -> Result<()> {
         model,
         tokenizer,
         embeddings,
+        profile_cache: ProfileCache::new(),
     });
 
     let cors = CorsLayer::new()
-        .allow_origin(Any) 
+        .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any);
 
-
     let app = Router::new()
-        .route("/query", post(query_handler))
-        .route("/health", get(health))
+        .route("/query",         post(query_handler))
+        .route("/compatibility", post(compatibility_handler))
+        .route("/archetype",     post(archetype_handler))
+        .route("/health",        get(health))
         .with_state(state)
         .layer(cors);
 
     info!("Server running at http://0.0.0.0:3000");
-    use tokio::net::TcpListener;
-
-    let listener = TcpListener::bind("0.0.0.0:3000").await?;
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
     axum::serve(listener, app).await?;
-
 
     Ok(())
 }
